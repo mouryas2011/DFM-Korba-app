@@ -7,9 +7,6 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
     name: Build iOS IPA & App
@@ -39,12 +36,8 @@ jobs:
           cp /tmp/ios_bak/Podfile ios/Podfile || true
           cp /tmp/ios_bak/AppDelegate.swift ios/Runner/AppDelegate.swift || true
 
-      - name: Install dependencies & CocoaPods
-        run: |
-          flutter pub get
-          cd ios
-          pod install || true
-          cd ..
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build iOS Application (Release, unsigned)
         run: |
