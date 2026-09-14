@@ -59,14 +59,23 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           gh issue create --title "CI Build Failure" --body "$(tail -n 100 /tmp/flutter_build.log)" || true
 
-      - name: Copy Release APK with Brand Name
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/dfm-korba.apk
+      - name: Prepare Release APK Artifacts
+        run: |
+          mkdir -p build/dist
+          find build -type f -name "*.apk" -ls
+          APK_FILE=$(find build -type f -name "*release*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            APK_FILE=$(find build -type f -name "*.apk" | head -n 1)
+          fi
+          echo "Discovered APK: $APK_FILE"
+          cp "$APK_FILE" build/dist/dfm-korba.apk
+          cp "$APK_FILE" build/dist/app-release.apk
 
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dfm-korba-release-apk
-          path: build/app/outputs/flutter-apk/dfm-korba.apk
+          path: build/dist/dfm-korba.apk
           retention-days: 30
 
       - name: Publish Direct Mobile Download Release
@@ -80,10 +89,10 @@ jobs:
             
             Official production mobile application for **DFM Korba (Drone Film Making Korba)**:
             - **Live Platform**: https://www.dfmkorba.online/
-            - **Package**: `com.dfmkorba.app`
+            - **Package Identifier**: `com.dfmkorba.app`
             
             ### 📥 Direct Mobile Installation:
             Download `dfm-korba.apk` directly on your Android phone and tap to install.
           files: |
-            build/app/outputs/flutter-apk/dfm-korba.apk
-            build/app/outputs/flutter-apk/app-release.apk
+            build/dist/dfm-korba.apk
+            build/dist/app-release.apk
