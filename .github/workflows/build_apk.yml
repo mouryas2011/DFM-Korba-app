@@ -49,15 +49,43 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          flutter build apk --release -v 2>&1 | tee /tmp/flutter_build.log
-          if [ ! -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            echo "### ❌ Build Log Tail" >> $GITHUB_STEP_SUMMARY
+          flutter build apk --release -v 2>&1 | tee /tmp/flutter_build.log || true
+          APK_FOUND=$(find build -type f -name "*.apk" 2>/dev/null | head -n 1)
+          if [ -z "$APK_FOUND" ]; then
+            echo "### ❌ Build Failure Diagnostics" >> $GITHUB_STEP_SUMMARY
             echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 120 /tmp/flutter_build.log >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+with open('/tmp/flutter_build.log', 'r', errors='ignore') as f:
+    lines = f.readlines()
+indices = [i for i, l in enumerate(lines) if 'What went wrong' in l or 'FAILURE:' in l or 'error:' in l.lower()]
+if indices:
+    start = max(0, indices[0] - 10)
+    end = min(len(lines), indices[0] + 80)
+    print(''.join(lines[start:end]))
+else:
+    print(''.join(lines[-120:]))
+" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            gh issue create --title "Build Failure Log" --body "$(tail -n 100 /tmp/flutter_build.log)" || true
+            gh issue create --title "Build Failure Log - $(date +'%H:%M:%S')" --body "$(python3 -c "
+with open('/tmp/flutter_build.log', 'r', errors='ignore') as f:
+    lines = f.readlines()
+indices = [i for i, l in enumerate(lines) if 'What went wrong' in l or 'FAILURE:' in l or 'error:' in l.lower()]
+if indices:
+    start = max(0, indices[0] - 10)
+    end = min(len(lines), indices[0] + 120)
+    print(''.join(lines[start:end]))
+else:
+    print(''.join(lines[-120:]))
+")" || true
             exit 1
           fi
+
+      - name: Upload Build Failure Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build-failure-log
+          path: /tmp/flutter_build.log
 
       - name: Prepare Release APK Artifacts
         run: |
