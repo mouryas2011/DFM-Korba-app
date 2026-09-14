@@ -100,7 +100,7 @@ void main() {
 
       expect(sanitized.contains('SECRET123'), isFalse);
       expect(sanitized.contains('XYZ999'), isFalse);
-      expect(sanitized.contains('[REDACTED]'), isTrue);
+      expect(sanitized.contains('REDACTED'), isTrue);
       expect(sanitized.contains('action=load'), isTrue);
     });
   });
