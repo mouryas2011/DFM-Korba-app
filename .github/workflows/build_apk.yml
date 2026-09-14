@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Android APK
@@ -42,11 +45,33 @@ jobs:
           flutter test || true
 
       - name: Build Android Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release -v
+
+      - name: Copy Release APK with Brand Name
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/dfm-korba.apk
 
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dfm-korba-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/dfm-korba.apk
           retention-days: 30
+
+      - name: Publish Direct Mobile Download Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: release-v1.0
+          name: "DFM Korba Android App v1.0.0"
+          body: |
+            ## 📱 DFM Korba Mobile App (Android APK)
+            
+            Official production mobile application for **DFM Korba (Drone Film Making Korba)**:
+            - **Live Platform**: https://www.dfmkorba.online/
+            - **Package**: `com.dfmkorba.app`
+            
+            ### 📥 Direct Mobile Installation:
+            Download `dfm-korba.apk` directly on your Android phone and tap to install.
+          files: |
+            build/app/outputs/flutter-apk/dfm-korba.apk
+            build/app/outputs/flutter-apk/app-release.apk
