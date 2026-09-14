@@ -1,0 +1,66 @@
+name: Build iOS Application
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build iOS IPA & App
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'
+          channel: 'stable'
+          cache: true
+
+      - name: Generate complete iOS Xcode project scaffolding
+        run: |
+          mkdir -p /tmp/ios_bak
+          cp ios/Runner/Info.plist /tmp/ios_bak/Info.plist || true
+          cp ios/Podfile /tmp/ios_bak/Podfile || true
+          cp ios/Runner/AppDelegate.swift /tmp/ios_bak/AppDelegate.swift || true
+
+          flutter create . --org com.dfmkorba --project-name dfm_korba_app --platforms=ios
+
+          cp /tmp/ios_bak/Info.plist ios/Runner/Info.plist || true
+          cp /tmp/ios_bak/Podfile ios/Podfile || true
+          cp /tmp/ios_bak/AppDelegate.swift ios/Runner/AppDelegate.swift || true
+
+      - name: Install dependencies & CocoaPods
+        run: |
+          flutter pub get
+          cd ios
+          pod install || true
+          cd ..
+
+      - name: Build iOS Application (Release, unsigned)
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package Payload into IPA
+        run: |
+          mkdir -p build/ios/ipa/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r DFM-Korba-iOS.ipa Payload
+          ls -lh DFM-Korba-iOS.ipa
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfm-korba-ios-ipa
+          path: build/ios/ipa/DFM-Korba-iOS.ipa
+          retention-days: 30
