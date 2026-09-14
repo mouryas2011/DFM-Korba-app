@@ -40,7 +40,7 @@ class ExitConfirmationDialog extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppConfig.accentAmber.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.Border.all(
+                    border: Border.all(
                       color: AppConfig.accentAmber.withOpacity(0.3),
                       width: 1,
                     ),
@@ -64,7 +64,7 @@ class ExitConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Do you want to exit the app?',
+              'Do you want to exit DFM Korba?',
               style: TextStyle(
                 color: AppConfig.textPrimary,
                 fontSize: 15,

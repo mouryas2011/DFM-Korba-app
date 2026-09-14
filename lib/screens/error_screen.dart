@@ -85,7 +85,7 @@ class _ErrorScreenState extends State<ErrorScreen> {
                 const SizedBox(height: 28),
 
                 Text(
-                  widget.errorTitle ?? 'Unable to Connect to DFM Korba',
+                  widget.errorTitle ?? 'Unable to load DFM Korba',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppConfig.textPrimary,
@@ -98,7 +98,7 @@ class _ErrorScreenState extends State<ErrorScreen> {
 
                 Text(
                   widget.errorMessage ??
-                      'The DFM Korba application server is taking too long to respond. Please check your network and try again.',
+                      'Please check your internet connection and try again.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppConfig.textSecondary,

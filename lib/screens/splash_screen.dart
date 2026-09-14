@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 600),
     );
 
     _fadeAnimation = CurvedAnimation(
@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeOut,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 
@@ -42,10 +42,10 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeAppAndNavigate() async {
-    // Perform startup initializations in parallel with animation
+    // Perform startup initializations; proceed as soon as ready without fake delays
     await Future.wait([
       ConnectivityService().initialize(),
-      Future.delayed(AppConfig.splashDisplayDuration),
+      Future.delayed(const Duration(milliseconds: 900)),
     ]);
 
     if (!mounted) return;
@@ -57,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen>
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 300),
       ),
     );
   }
@@ -172,7 +172,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 24),
 
                   const Text(
-                    'Powered by Google Apps Script Cloud Engine',
+                    'Center of Excellence in Drone Education',
                     style: TextStyle(
                       color: AppConfig.textMuted,
                       fontSize: 11,

@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 
 /// Professional offline screen displayed when the device loses network connectivity.
-class NoInternetScreen extends StatefulWidget {
+/// Displays:
+///   "NO INTERNET CONNECTION"
+///   "Please check your internet connection and try again."
+///   Button: "Retry"
+class OfflineScreen extends StatefulWidget {
   final Future<void> Function() onRetry;
 
-  const NoInternetScreen({
+  const OfflineScreen({
     super.key,
     required this.onRetry,
   });
 
   @override
-  State<NoInternetScreen> createState() => _NoInternetScreenState();
+  State<OfflineScreen> createState() => _OfflineScreenState();
 }
 
-class _NoInternetScreenState extends State<NoInternetScreen> {
+class _OfflineScreenState extends State<OfflineScreen> {
   bool _isRetrying = false;
 
   Future<void> _handleRetry() async {
@@ -41,7 +45,7 @@ class _NoInternetScreenState extends State<NoInternetScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Offline Radar Emblem
+                // Offline Radar Indicator
                 Container(
                   width: 96,
                   height: 96,
@@ -49,12 +53,12 @@ class _NoInternetScreenState extends State<NoInternetScreen> {
                     color: AppConfig.chassisSlate,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppConfig.accentAmber.withOpacity(0.3),
+                      color: AppConfig.accentAmber.withOpacity(0.35),
                       width: 2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppConfig.accentAmber.withOpacity(0.1),
+                        color: AppConfig.accentAmber.withOpacity(0.12),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),
@@ -71,20 +75,21 @@ class _NoInternetScreenState extends State<NoInternetScreen> {
 
                 const SizedBox(height: 28),
 
-                // Prompt Section 9 required text
+                // Title required by Prompt
                 const Text(
-                  'No Internet Connection',
+                  'NO INTERNET CONNECTION',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppConfig.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
                   ),
                 ),
 
                 const SizedBox(height: 12),
 
-                // Prompt Section 9 required text
+                // Description required by Prompt
                 const Text(
                   'Please check your internet connection and try again.',
                   textAlign: TextAlign.center,

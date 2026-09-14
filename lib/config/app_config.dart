@@ -18,12 +18,14 @@ class AppConfig {
   static const String appPackageName = 'com.dfmkorba.app';
 
   // ===========================================================================
-  // PRIMARY WEB APPLICATION URL (Google Apps Script)
+  // PRIMARY WEB APPLICATION URL
   // ===========================================================================
-  /// Official Google Apps Script Web App Endpoint.
-  /// Any changes to the web app URL should be done ONLY here.
-  static const String webAppUrl =
-      'https://script.google.com/macros/s/AKfycbxqbAmKxvfbTnv313FFoSafospHlNpbx0oY9J9gCPypU3srpSILcYJgGUyD29S1wS1h/exec';
+  /// Official Primary Website URL for DFM Korba.
+  /// Centralized single source of truth (BASE_URL).
+  static const String baseUrl = 'https://www.dfmkorba.online/';
+
+  /// Backward-compatible alias for the primary URL.
+  static const String webAppUrl = baseUrl;
 
   // ===========================================================================
   // DOMAIN SECURITY WHITELIST
@@ -31,14 +33,30 @@ class AppConfig {
   /// Only pages hosted under these trusted domains are loaded inside the WebView.
   /// All other external links will be routed through external handlers.
   static const List<String> trustedDomains = [
+    // Primary Website Domains
+    'dfmkorba.online',
+    'www.dfmkorba.online',
+
+    // Google Sites & Google Cloud Infrastructure
+    'sites.google.com',
+    'google.com',
+    'ssl.gstatic.com',
+    'gstatic.com',
+    'lh3.googleusercontent.com',
+    'commondatastorage.googleapis.com',
+    'apis.google.com',
+
+    // Google Apps Script & Embedded Web Apps
     'script.google.com',
     'script.googleusercontent.com',
     'googleusercontent.com',
+
+    // Google Workspace Integrations (Drive, Docs, Forms, Sheets)
     'drive.google.com',
     'docs.google.com',
     'accounts.google.com',
-    'lh3.googleusercontent.com',
-    'commondatastorage.googleapis.com',
+
+    // CDN & Media Services
     'api.qrserver.com',
     'fonts.googleapis.com',
     'fonts.gstatic.com',

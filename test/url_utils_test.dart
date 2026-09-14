@@ -3,7 +3,37 @@ import 'package:dfm_korba_app/utils/url_utils.dart';
 
 void main() {
   group('UrlUtils Tests', () {
-    test('Identifies trusted Google Apps Script and Google domains', () {
+    test('Identifies primary DFM Korba website and sub-pages', () {
+      expect(
+        UrlUtils.isInternalAppUri(
+          Uri.parse('https://www.dfmkorba.online/'),
+        ),
+        isTrue,
+      );
+
+      expect(
+        UrlUtils.isInternalAppUri(
+          Uri.parse('https://dfmkorba.online/courses'),
+        ),
+        isTrue,
+      );
+
+      expect(
+        UrlUtils.isInternalAppUri(
+          Uri.parse('https://www.dfmkorba.online/student-portal/login'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('Identifies trusted Google Sites, Apps Script, and Google Workspace domains', () {
+      expect(
+        UrlUtils.isInternalAppUri(
+          Uri.parse('https://sites.google.com/view/dfmkorba'),
+        ),
+        isTrue,
+      );
+
       expect(
         UrlUtils.isInternalAppUri(
           Uri.parse('https://script.google.com/macros/s/AKfycbxqbAmKxvfbTnv313FFoSafospHlNpbx0oY9J9gCPypU3srpSILcYJgGUyD29S1wS1h/exec'),
@@ -21,6 +51,13 @@ void main() {
       expect(
         UrlUtils.isInternalAppUri(
           Uri.parse('https://drive.google.com/file/d/123/view'),
+        ),
+        isTrue,
+      );
+
+      expect(
+        UrlUtils.isInternalAppUri(
+          Uri.parse('https://accounts.google.com/signin/v2/identifier'),
         ),
         isTrue,
       );

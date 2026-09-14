@@ -3,16 +3,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../config/app_config.dart';
 import '../services/connectivity_service.dart';
 import '../services/download_service.dart';
 import '../services/navigation_service.dart';
+import '../utils/url_utils.dart';
 import '../widgets/exit_dialog.dart';
 import '../widgets/loading_indicator.dart';
 import 'error_screen.dart';
-import 'no_internet_screen.dart';
+import 'offline_screen.dart';
 
-/// Primary production WebView container hosting the Google Apps Script Web App.
+/// Primary production WebView container hosting https://www.dfmkorba.online/
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
 
@@ -20,7 +22,7 @@ class WebViewScreen extends StatefulWidget {
   State<WebViewScreen> createState() => _WebViewScreenState();
 }
 
-class _WebViewScreenState extends State<WebViewScreen> {
+class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserver {
   InAppWebViewController? _webViewController;
   PullToRefreshController? _pullToRefreshController;
 
@@ -28,16 +30,33 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool _isInitialLoading = true;
   bool _hasError = false;
   String? _errorMessage;
+  bool _wasOffline = false;
 
   final ConnectivityService _connectivityService = ConnectivityService();
-
   late final InAppWebViewSettings _webViewSettings;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initWebViewSettings();
     _initPullToRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _webViewController != null) {
+      // Avoid reloading on app resume; preserve exact state
+      if (kDebugMode) {
+        debugPrint('[WebView] App resumed, preserving state.');
+      }
+    }
   }
 
   void _initWebViewSettings() {
@@ -49,7 +68,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
       cacheEnabled: true,
       clearCache: false, // Maintain session / token persistence across launches
 
-      // Cookie Configurations (Critical for Google Apps Script iframe persistence)
+      // Cookie Configurations (Critical for Google Sites and Google Apps Script embeds)
       thirdPartyCookiesEnabled: true,
 
       // File & Media Handling
@@ -64,11 +83,11 @@ class _WebViewScreenState extends State<WebViewScreen> {
       useShouldOverrideUrlLoading: true,
       useOnDownloadStart: true,
 
-      // Security
+      // Security: Strict HTTPS Enforced
       mixedContentMode: MixedContentMode.MIXED_CONTENT_NEVER_ALLOW,
       safeBrowsingEnabled: true,
 
-      // Visual / UI Customization
+      // Visual & Rendering
       transparentBackground: false,
       useHybridComposition: true,
       disallowOverScroll: false,
@@ -95,7 +114,9 @@ class _WebViewScreenState extends State<WebViewScreen> {
           );
   }
 
-  /// Handles Android system back button navigation conforming to Prompt Section 7.
+  /// Handles Android system back button navigation.
+  /// If WebView has navigation history, go back.
+  /// If at root, prompt exit confirmation dialog.
   Future<void> _handlePopScope(bool didPop, dynamic result) async {
     if (didPop) return;
 
@@ -111,7 +132,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     }
   }
 
-  /// Reloads the WebView to recover from an error state.
+  /// Reloads the WebView to recover from an error or connection return.
   void _retryLoading() {
     setState(() {
       _hasError = false;
@@ -121,7 +142,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     _webViewController?.reload();
   }
 
-  /// Navigates fresh to the primary Google Apps Script URL.
+  /// Navigates fresh to the primary DFM Korba website URL.
   void _reloadEntireApp() {
     setState(() {
       _hasError = false;
@@ -129,7 +150,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
       _isInitialLoading = true;
     });
     _webViewController?.loadUrl(
-      urlRequest: URLRequest(url: WebUri(AppConfig.webAppUrl)),
+      urlRequest: URLRequest(url: WebUri(AppConfig.baseUrl)),
     );
   }
 
@@ -143,35 +164,25 @@ class _WebViewScreenState extends State<WebViewScreen> {
         body: ValueListenableBuilder<bool>(
           valueListenable: _connectivityService.isConnectedNotifier,
           builder: (context, isConnected, child) {
-            // 1. Offline Mode Display
-            if (!isConnected) {
-              return NoInternetScreen(
-                onRetry: () async {
-                  final reachable =
-                      await _connectivityService.checkInternetReachability();
-                  if (reachable) {
-                    _retryLoading();
-                  }
-                },
-              );
+            // Automatically reload if we were previously offline and connection returned
+            if (isConnected && _wasOffline) {
+              _wasOffline = false;
+              if (_hasError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _retryLoading();
+                });
+              }
+            } else if (!isConnected) {
+              _wasOffline = true;
             }
 
-            // 2. Fatal WebView Error Screen
-            if (_hasError) {
-              return ErrorScreen(
-                errorMessage: _errorMessage,
-                onRetry: _retryLoading,
-                onReload: _reloadEntireApp,
-              );
-            }
-
-            // 3. Primary Production WebView Stack
             return SafeArea(
               child: Stack(
                 children: [
+                  // 1. Primary WebView - ALWAYS kept mounted to preserve DOM and form state
                   InAppWebView(
                     initialUrlRequest: URLRequest(
-                      url: WebUri(AppConfig.webAppUrl),
+                      url: WebUri(AppConfig.baseUrl),
                     ),
                     initialSettings: _webViewSettings,
                     pullToRefreshController: _pullToRefreshController,
@@ -180,7 +191,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     },
                     onLoadStart: (controller, url) {
                       if (kDebugMode) {
-                        debugPrint('[WebView] onLoadStart: $url');
+                        debugPrint('[WebView] onLoadStart: ${UrlUtils.sanitizeUrlForLogging(url?.toString() ?? '')}');
                       }
                       setState(() {
                         _hasError = false;
@@ -189,7 +200,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     },
                     onLoadStop: (controller, url) async {
                       if (kDebugMode) {
-                        debugPrint('[WebView] onLoadStop: $url');
+                        debugPrint('[WebView] onLoadStop: ${UrlUtils.sanitizeUrlForLogging(url?.toString() ?? '')}');
                       }
                       _pullToRefreshController?.endRefreshing();
                       setState(() {
@@ -210,14 +221,14 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     },
                     onReceivedError: (controller, request, error) {
                       _pullToRefreshController?.endRefreshing();
-                      // Ignore non-fatal cancellations (e.g. when redirected to external links)
+                      // Only handle fatal connectivity / host lookup / timeout failures
                       if (error.type == WebResourceErrorType.CANNOT_CONNECT_TO_HOST ||
                           error.type == WebResourceErrorType.HOST_LOOKUP ||
                           error.type == WebResourceErrorType.TIMEOUT) {
                         setState(() {
                           _hasError = true;
                           _errorMessage =
-                              'Could not establish connection to DFM Korba server.';
+                              'Please check your internet connection and try again.';
                           _isInitialLoading = false;
                         });
                       }
@@ -228,7 +239,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                           setState(() {
                             _hasError = true;
                             _errorMessage =
-                                'DFM Korba server error (${errorResponse.statusCode}).';
+                                'DFM Korba server temporarily unavailable (${errorResponse.statusCode}). Please try again shortly.';
                           });
                         }
                       }
@@ -239,17 +250,26 @@ class _WebViewScreenState extends State<WebViewScreen> {
                         return NavigationActionPolicy.ALLOW;
                       }
 
-                      // Intercept external schemes (WhatsApp, phone, mailto, maps, external links)
+                      // Intercept external schemes (WhatsApp, phone, mailto, maps, YouTube, external sites)
                       final handled =
                           await NavigationService.handleNavigation(context, uri);
                       if (handled) {
                         return NavigationActionPolicy.CANCEL;
                       }
 
+                      // If a standalone PDF file is opened directly, download and open natively
+                      if (UrlUtils.isPdf(uri) && !uri.host.contains('drive.google.com')) {
+                        await DownloadService.handleDownload(
+                          context: context,
+                          url: uri.toString(),
+                        );
+                        return NavigationActionPolicy.CANCEL;
+                      }
+
                       return NavigationActionPolicy.ALLOW;
                     },
                     onCreateWindow: (controller, createWindowAction) async {
-                      // Support window.open() & target="_blank" without breaking UI
+                      // Support window.open() & target="_blank" (e.g. popups, Google Auth)
                       final uri = createWindowAction.request.url?.uriValue;
                       if (uri != null) {
                         final handled =
@@ -263,7 +283,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                       return true;
                     },
                     onDownloadStartRequest: (controller, downloadStartRequest) async {
-                      // Support certificate downloads, marksheets, and PDF files
+                      // Support student downloads (PDFs, certificates, course material)
                       await DownloadService.handleDownload(
                         context: context,
                         url: downloadStartRequest.url.toString(),
@@ -272,7 +292,26 @@ class _WebViewScreenState extends State<WebViewScreen> {
                       );
                     },
                     onPermissionRequest: (controller, permissionRequest) async {
-                      // Grant requested media permissions contextually
+                      // Contextual runtime permission verification for camera / microphone
+                      for (final resource in permissionRequest.resources) {
+                        if (resource == PermissionResourceType.CAMERA) {
+                          final status = await Permission.camera.request();
+                          if (!status.isGranted) {
+                            return PermissionResponse(
+                              resources: permissionRequest.resources,
+                              action: PermissionResponseAction.DENY,
+                            );
+                          }
+                        } else if (resource == PermissionResourceType.MICROPHONE) {
+                          final status = await Permission.microphone.request();
+                          if (!status.isGranted) {
+                            return PermissionResponse(
+                              resources: permissionRequest.resources,
+                              action: PermissionResponseAction.DENY,
+                            );
+                          }
+                        }
+                      }
                       return PermissionResponse(
                         resources: permissionRequest.resources,
                         action: PermissionResponseAction.GRANT,
@@ -280,7 +319,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     },
                   ),
 
-                  // Top slim progress bar during navigation
+                  // 2. Top Slim Progress Bar
                   Positioned(
                     top: 0,
                     left: 0,
@@ -288,12 +327,36 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     child: DfmTopProgressBar(progress: _loadingProgress),
                   ),
 
-                  // Initial handshake loading overlay
-                  if (_isInitialLoading)
+                  // 3. Initial Handshake Loading Indicator
+                  if (_isInitialLoading && !_hasError && isConnected)
                     Container(
                       color: AppConfig.chassisObsidian,
                       child: const DfmLoadingIndicator(
                         message: 'Connecting to DFM Korba...',
+                      ),
+                    ),
+
+                  // 4. Fatal Error Overlay (Retry / Reload)
+                  if (_hasError && isConnected)
+                    Positioned.fill(
+                      child: ErrorScreen(
+                        errorMessage: _errorMessage,
+                        onRetry: _retryLoading,
+                        onReload: _reloadEntireApp,
+                      ),
+                    ),
+
+                  // 5. Offline Screen Overlay (Preserves WebView underneath)
+                  if (!isConnected)
+                    Positioned.fill(
+                      child: OfflineScreen(
+                        onRetry: () async {
+                          final reachable =
+                              await _connectivityService.checkInternetReachability();
+                          if (reachable) {
+                            _retryLoading();
+                          }
+                        },
                       ),
                     ),
                 ],
