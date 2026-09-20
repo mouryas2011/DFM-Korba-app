@@ -54,29 +54,9 @@ jobs:
           if [ -z "$APK_FOUND" ]; then
             echo "### ❌ Build Failure Diagnostics" >> $GITHUB_STEP_SUMMARY
             echo '```text' >> $GITHUB_STEP_SUMMARY
-            python3 -c "
-with open('/tmp/flutter_build.log', 'r', errors='ignore') as f:
-    lines = f.readlines()
-indices = [i for i, l in enumerate(lines) if 'What went wrong' in l or 'FAILURE:' in l or 'error:' in l.lower()]
-if indices:
-    start = max(0, indices[0] - 10)
-    end = min(len(lines), indices[0] + 80)
-    print(''.join(lines[start:end]))
-else:
-    print(''.join(lines[-120:]))
-" >> $GITHUB_STEP_SUMMARY
+            python3 scripts/report_build_error.py /tmp/flutter_build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            gh issue create --title "Build Failure Log - $(date +'%H:%M:%S')" --body "$(python3 -c "
-with open('/tmp/flutter_build.log', 'r', errors='ignore') as f:
-    lines = f.readlines()
-indices = [i for i, l in enumerate(lines) if 'What went wrong' in l or 'FAILURE:' in l or 'error:' in l.lower()]
-if indices:
-    start = max(0, indices[0] - 10)
-    end = min(len(lines), indices[0] + 120)
-    print(''.join(lines[start:end]))
-else:
-    print(''.join(lines[-120:]))
-")" || true
+            gh issue create --title "Build Failure Log - $(date +'%H:%M:%S')" --body "$(python3 scripts/report_build_error.py /tmp/flutter_build.log)" || true
             exit 1
           fi
 
@@ -109,6 +89,8 @@ else:
       - name: Publish Direct Mobile Download Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: release-v1.0
           name: "DFM Korba Android App v1.0.0"

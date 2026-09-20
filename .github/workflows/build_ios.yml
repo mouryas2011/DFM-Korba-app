@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build iOS IPA & App
@@ -41,12 +44,29 @@ jobs:
 
       - name: Build iOS Application (Release, unsigned)
         run: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign -v 2>&1 | tee /tmp/flutter_ios.log || true
+          APP_FOUND=$(find build/ios -type d -name "Runner.app" 2>/dev/null | head -n 1)
+          if [ -z "$APP_FOUND" ]; then
+            echo "### ❌ iOS Build Failure Diagnostics" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            python3 scripts/report_build_error.py /tmp/flutter_ios.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload Build Failure Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-ios-failure-log
+          path: /tmp/flutter_ios.log
 
       - name: Package Payload into IPA
         run: |
           mkdir -p build/ios/ipa/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          APP_PATH=$(find build/ios -type d -name "Runner.app" | head -n 1)
+          echo "Found app at: $APP_PATH"
+          cp -r "$APP_PATH" build/ios/ipa/Payload/
           cd build/ios/ipa
           zip -r DFM-Korba-iOS.ipa Payload
           ls -lh DFM-Korba-iOS.ipa
@@ -57,3 +77,14 @@ jobs:
           name: dfm-korba-ios-ipa
           path: build/ios/ipa/DFM-Korba-iOS.ipa
           retention-days: 30
+
+      - name: Publish Direct iOS Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-v1.0
+          name: "DFM Korba Mobile App v1.0.0"
+          files: |
+            build/ios/ipa/DFM-Korba-iOS.ipa
