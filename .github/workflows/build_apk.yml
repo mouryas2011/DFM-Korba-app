@@ -93,7 +93,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: release-v1.0
-          name: "DFM Korba Android App v1.0.0"
+          name: "DFM Korba Android App v1.0.1"
+          make_latest: true
           body: |
             ## 📱 DFM Korba Mobile App (Android APK)
             

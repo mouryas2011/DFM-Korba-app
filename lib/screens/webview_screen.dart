@@ -52,10 +52,15 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _webViewController != null) {
-      // Avoid reloading on app resume; preserve exact state
       if (kDebugMode) {
         debugPrint('[WebView] App resumed, preserving state.');
       }
+      // Verify connectivity on resume in case network changed while in background
+      _connectivityService.checkInternetReachability().then((reachable) {
+        if (mounted && reachable && _hasError) {
+          _retryLoading();
+        }
+      });
     }
   }
 
@@ -66,9 +71,9 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
       domStorageEnabled: true,
       databaseEnabled: true,
       cacheEnabled: true,
-      clearCache: false, // Maintain session / token persistence across launches
+      clearCache: false, // Maintain session persistence across launches
 
-      // Cookie Configurations (Critical for Google Sites and Google Apps Script embeds)
+      // Cookie Configurations (Critical for Google Sites & Google Apps Script embeds)
       thirdPartyCookiesEnabled: true,
 
       // File & Media Handling
@@ -83,9 +88,9 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
       useShouldOverrideUrlLoading: true,
       useOnDownloadStart: true,
 
-      // Security: Strict HTTPS Enforced
-      mixedContentMode: MixedContentMode.MIXED_CONTENT_NEVER_ALLOW,
-      safeBrowsingEnabled: true,
+      // Security: Allow mixed content so Google Sites / script embeds can load assets seamlessly
+      mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+      safeBrowsingEnabled: false, // Prevent Play Services timeouts on diverse Android builds
 
       // Visual & Rendering
       transparentBackground: false,
@@ -132,24 +137,40 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Reloads the WebView to recover from an error or connection return.
-  void _retryLoading() {
+  /// Reliably reloads the WebView, loading the base URL if previous load was empty.
+  Future<void> _retryLoading() async {
     setState(() {
       _hasError = false;
       _errorMessage = null;
       _isInitialLoading = true;
     });
-    _webViewController?.reload();
+
+    final isReachable = await _connectivityService.checkInternetReachability();
+    _connectivityService.isConnectedNotifier.value = isReachable;
+
+    if (_webViewController != null) {
+      final currentUri = await _webViewController!.getUrl();
+      if (currentUri == null ||
+          currentUri.toString().isEmpty ||
+          currentUri.toString() == 'about:blank') {
+        await _webViewController!.loadUrl(
+          urlRequest: URLRequest(url: WebUri(AppConfig.baseUrl)),
+        );
+      } else {
+        await _webViewController!.reload();
+      }
+    }
   }
 
   /// Navigates fresh to the primary DFM Korba website URL.
-  void _reloadEntireApp() {
+  Future<void> _reloadEntireApp() async {
     setState(() {
       _hasError = false;
       _errorMessage = null;
       _isInitialLoading = true;
     });
-    _webViewController?.loadUrl(
+    _connectivityService.isConnectedNotifier.value = true;
+    await _webViewController?.loadUrl(
       urlRequest: URLRequest(url: WebUri(AppConfig.baseUrl)),
     );
   }
@@ -175,6 +196,9 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
             } else if (!isConnected) {
               _wasOffline = true;
             }
+
+            // Only show offline overlay if device is confirmed offline AND an error occurred
+            final showOfflineOverlay = !isConnected && _hasError;
 
             return SafeArea(
               child: Stack(
@@ -221,16 +245,20 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                     },
                     onReceivedError: (controller, request, error) {
                       _pullToRefreshController?.endRefreshing();
-                      // Only handle fatal connectivity / host lookup / timeout failures
-                      if (error.type == WebResourceErrorType.CANNOT_CONNECT_TO_HOST ||
-                          error.type == WebResourceErrorType.HOST_LOOKUP ||
-                          error.type == WebResourceErrorType.TIMEOUT) {
-                        setState(() {
-                          _hasError = true;
-                          _errorMessage =
-                              'Please check your internet connection and try again.';
-                          _isInitialLoading = false;
-                        });
+                      // Only handle fatal connectivity failures on the MAIN FRAME
+                      if (request.isForMainFrame ?? false) {
+                        if (error.type == WebResourceErrorType.CANNOT_CONNECT_TO_HOST ||
+                            error.type == WebResourceErrorType.HOST_LOOKUP ||
+                            error.type == WebResourceErrorType.TIMEOUT ||
+                            error.type == WebResourceErrorType.NOT_CONNECTED_TO_INTERNET ||
+                            error.type == WebResourceErrorType.CONNECT) {
+                          setState(() {
+                            _hasError = true;
+                            _errorMessage =
+                                'Please check your internet connection and try again.';
+                            _isInitialLoading = false;
+                          });
+                        }
                       }
                     },
                     onReceivedHttpError: (controller, request, errorResponse) {
@@ -240,6 +268,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                             _hasError = true;
                             _errorMessage =
                                 'DFM Korba server temporarily unavailable (${errorResponse.statusCode}). Please try again shortly.';
+                            _isInitialLoading = false;
                           });
                         }
                       }
@@ -257,7 +286,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                         return NavigationActionPolicy.CANCEL;
                       }
 
-                      // If a standalone PDF file is opened directly, download and open natively
+                      // Direct PDF downloads
                       if (UrlUtils.isPdf(uri) && !uri.host.contains('drive.google.com')) {
                         await DownloadService.handleDownload(
                           context: context,
@@ -269,7 +298,6 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                       return NavigationActionPolicy.ALLOW;
                     },
                     onCreateWindow: (controller, createWindowAction) async {
-                      // Support window.open() & target="_blank" (e.g. popups, Google Auth)
                       final uri = createWindowAction.request.url?.uriValue;
                       if (uri != null) {
                         final handled =
@@ -283,7 +311,6 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                       return true;
                     },
                     onDownloadStartRequest: (controller, downloadStartRequest) async {
-                      // Support student downloads (PDFs, certificates, course material)
                       await DownloadService.handleDownload(
                         context: context,
                         url: downloadStartRequest.url.toString(),
@@ -292,7 +319,6 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                       );
                     },
                     onPermissionRequest: (controller, permissionRequest) async {
-                      // Contextual runtime permission verification for camera / microphone
                       for (final resource in permissionRequest.resources) {
                         if (resource == PermissionResourceType.CAMERA) {
                           final status = await Permission.camera.request();
@@ -328,7 +354,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                   ),
 
                   // 3. Initial Handshake Loading Indicator
-                  if (_isInitialLoading && !_hasError && isConnected)
+                  if (_isInitialLoading && !_hasError && !showOfflineOverlay)
                     Container(
                       color: AppConfig.chassisObsidian,
                       child: const DfmLoadingIndicator(
@@ -336,8 +362,8 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                       ),
                     ),
 
-                  // 4. Fatal Error Overlay (Retry / Reload)
-                  if (_hasError && isConnected)
+                  // 4. Fatal Server Error Overlay
+                  if (_hasError && isConnected && !showOfflineOverlay)
                     Positioned.fill(
                       child: ErrorScreen(
                         errorMessage: _errorMessage,
@@ -346,16 +372,12 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                       ),
                     ),
 
-                  // 5. Offline Screen Overlay (Preserves WebView underneath)
-                  if (!isConnected)
+                  // 5. Offline Screen Overlay (shown only when verified offline AND error occurred)
+                  if (showOfflineOverlay)
                     Positioned.fill(
                       child: OfflineScreen(
                         onRetry: () async {
-                          final reachable =
-                              await _connectivityService.checkInternetReachability();
-                          if (reachable) {
-                            _retryLoading();
-                          }
+                          await _retryLoading();
                         },
                       ),
                     ),

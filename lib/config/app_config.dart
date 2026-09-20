@@ -13,8 +13,8 @@ class AppConfig {
   static const String appName = 'DFM Korba';
   static const String appFullName = 'Drone Film Making Korba';
   static const String appTagline = 'Center of Excellence in Drone Technology & Aerial Cinematography';
-  static const String appVersion = '1.0.0';
-  static const int appBuildNumber = 1;
+  static const String appVersion = '1.0.1';
+  static const int appBuildNumber = 2;
   static const String appPackageName = 'com.dfmkorba.app';
 
   // ===========================================================================

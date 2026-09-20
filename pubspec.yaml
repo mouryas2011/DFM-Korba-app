@@ -1,7 +1,7 @@
 name: dfm_korba_app
 description: "Production mobile application wrapper for DFM Korba (Drone Film Making Korba) Google Apps Script Web App."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
