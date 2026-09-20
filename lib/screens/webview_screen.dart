@@ -235,7 +235,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                     },
                     onReceivedHttpError: (controller, request, errorResponse) {
                       if (request.isForMainFrame ?? false) {
-                        if (errorResponse.statusCode >= 500) {
+                        if ((errorResponse.statusCode ?? 0) >= 500) {
                           setState(() {
                             _hasError = true;
                             _errorMessage =

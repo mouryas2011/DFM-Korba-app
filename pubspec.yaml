@@ -33,7 +33,7 @@ dependencies:
   permission_handler: ^11.3.1
 
   # Polished animated loading widgets
-  flutter_spinkit: ^5.2.1
+  flutter_spinkit: 5.2.0
 
   # Cupertino icons for iOS look and feel
   cupertino_icons: ^1.0.8
