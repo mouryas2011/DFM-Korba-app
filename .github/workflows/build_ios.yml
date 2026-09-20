@@ -32,12 +32,14 @@ jobs:
           cp ios/Runner/Info.plist /tmp/ios_bak/Info.plist || true
           cp ios/Podfile /tmp/ios_bak/Podfile || true
           cp ios/Runner/AppDelegate.swift /tmp/ios_bak/AppDelegate.swift || true
+          cp -r ios/Runner/Assets.xcassets /tmp/ios_bak/Assets.xcassets || true
 
           flutter create . --org com.dfmkorba --project-name dfm_korba_app --platforms=ios
 
           cp /tmp/ios_bak/Info.plist ios/Runner/Info.plist || true
           cp /tmp/ios_bak/Podfile ios/Podfile || true
           cp /tmp/ios_bak/AppDelegate.swift ios/Runner/AppDelegate.swift || true
+          cp -r /tmp/ios_bak/Assets.xcassets ios/Runner/Assets.xcassets || true
 
       - name: Install dependencies
         run: flutter pub get

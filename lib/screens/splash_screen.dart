@@ -85,36 +85,35 @@ class _SplashScreenState extends State<SplashScreen>
 
                   // App Logo / Tech Drone Emblem
                   Container(
-                    width: 108,
-                    height: 108,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
-                      color: AppConfig.chassisSlate,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: AppConfig.chassisBorderBright,
-                        width: 1.5,
-                      ),
+                      color: Colors.white,
+                      shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppConfig.primaryBlue.withOpacity(0.25),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
+                          color: AppConfig.primaryBlue.withOpacity(0.35),
+                          blurRadius: 28,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Image.asset(
-                      'assets/images/dfm_korba_logo.png',
-                      errorBuilder: (context, error, stackTrace) {
-                        // Resilient branded fallback if image asset is loading
-                        return const Center(
-                          child: Icon(
-                            Icons.flight_takeoff_rounded,
-                            size: 54,
-                            color: AppConfig.accentAmber,
-                          ),
-                        );
-                      },
+                    padding: const EdgeInsets.all(4),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/dfm_korba_logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Resilient branded fallback if image asset is loading
+                          return const Center(
+                            child: Icon(
+                              Icons.flight_takeoff_rounded,
+                              size: 54,
+                              color: AppConfig.accentAmber,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
 
