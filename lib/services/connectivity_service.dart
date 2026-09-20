@@ -47,11 +47,7 @@ class ConnectivityService {
     }
 
     final hasActiveInterface = results.any((result) =>
-        result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet ||
-        result == ConnectivityResult.vpn ||
-        result == ConnectivityResult.other);
+        result != ConnectivityResult.none);
 
     if (hasActiveInterface) {
       isConnectedNotifier.value = true;

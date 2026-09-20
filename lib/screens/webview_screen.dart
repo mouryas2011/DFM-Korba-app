@@ -250,8 +250,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                         if (error.type == WebResourceErrorType.CANNOT_CONNECT_TO_HOST ||
                             error.type == WebResourceErrorType.HOST_LOOKUP ||
                             error.type == WebResourceErrorType.TIMEOUT ||
-                            error.type == WebResourceErrorType.NOT_CONNECTED_TO_INTERNET ||
-                            error.type == WebResourceErrorType.CONNECT) {
+                            error.type == WebResourceErrorType.NOT_CONNECTED_TO_INTERNET) {
                           setState(() {
                             _hasError = true;
                             _errorMessage =
